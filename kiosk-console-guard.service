@@ -1,0 +1,20 @@
+[Unit]
+Description=Airvoice kiosk console guard (keeps boot/login text off the screen)
+# getty@tty1 resets tty1 to text mode when it starts (TTYReset=yes), which
+# flashed the login prompt over the boot screen. This puts it straight back.
+After=kiosk-splash.service
+Wants=kiosk-splash.service
+DefaultDependencies=no
+Conflicts=shutdown.target
+Before=shutdown.target getty@tty1.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/kiosk-renderer
+ExecStart=/usr/bin/python3 /opt/kiosk-renderer/kiosk_splash.py --guard
+Restart=always
+RestartSec=1
+Nice=-5
+
+[Install]
+WantedBy=sysinit.target

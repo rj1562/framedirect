@@ -1,0 +1,9 @@
+[Unit]
+Description=architect2 kiosk HDMI-CEC display watchdog (wakes TV, keeps it on the correct input; ported unchanged from v9, network/renderer-independent)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+TimeoutStartSec=20
+User=pi
+ExecStart=/usr/local/bin/cec-watchdog.sh

@@ -1,0 +1,9 @@
+[Unit]
+Description=Run cec-watchdog every 30 seconds (offset :20/:50 -- net-watchdog uses :00/:30, wifi-scan-watchdog uses :10/:40)
+
+[Timer]
+OnCalendar=*-*-* *:*:20,50
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

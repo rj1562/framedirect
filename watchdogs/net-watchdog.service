@@ -1,0 +1,13 @@
+[Unit]
+Description=architect2 kiosk network watchdog (dual Ethernet/WiFi aware)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pi
+# Same reasoning as v9's pi-watchdog: 60s covers the worst realistic case
+# (sleep 20 NM restart + sleep 12 USB rebind settle + several 20s-bounded
+# calls), as a backstop -- not expected to be hit in normal operation.
+TimeoutStartSec=60
+ExecStart=/usr/local/bin/net-watchdog.sh

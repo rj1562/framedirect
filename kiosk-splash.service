@@ -1,0 +1,19 @@
+[Unit]
+Description=Airvoice kiosk boot splash (hides console text, shows logo)
+# Starts early and in parallel with the rest of boot -- nothing waits on it
+# except the tty1 login prompt and the renderer, so it can delay those by at
+# most TimeoutStartSec but can never block boot itself. It changes no files:
+# disabling this unit and rebooting gives plain stock boot again.
+DefaultDependencies=no
+Before=getty@tty1.service kiosk-renderer.service shutdown.target
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/kiosk-renderer
+ExecStart=/usr/bin/python3 /opt/kiosk-renderer/kiosk_splash.py
+TimeoutStartSec=45
+
+[Install]
+WantedBy=sysinit.target

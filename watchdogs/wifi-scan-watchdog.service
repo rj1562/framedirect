@@ -1,0 +1,9 @@
+[Unit]
+Description=architect2 kiosk nearby-WiFi visibility log (self-disables on Ethernet-only devices)
+After=network.target
+
+[Service]
+Type=oneshot
+User=pi
+TimeoutStartSec=30
+ExecStart=/usr/local/bin/wifi-scan-watchdog.sh

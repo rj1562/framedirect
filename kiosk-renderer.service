@@ -1,0 +1,32 @@
+[Unit]
+Description=Airvoice kiosk native renderer (no browser)
+After=network.target systemd-user-sessions.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+# Only "video" is needed now -- /dev/fb0 is group-owned by "video". "render"
+# and "input" were only ever needed for the old DRM/GBM (SDL2/KMSDRM)
+# rendering path; this build draws with Pillow and writes straight to
+# /dev/fb0 instead (see kiosk_renderer.py's module docstring for why).
+SupplementaryGroups=video
+Environment=KIOSK_CONFIG=/etc/kiosk-renderer/config.json
+Environment=KIOSK_CACHE=/var/lib/kiosk-renderer/latest.json
+Environment=KIOSK_API_LOG=/var/log/kiosk-api.log
+Environment=KIOSK_WIDGET_HEALTH_LOG=/var/log/kiosk-widget-health.log
+ExecStart=/usr/bin/python3 /opt/kiosk-renderer/kiosk_renderer.py
+WorkingDirectory=/opt/kiosk-renderer
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+# Raspberry Pi OS Lite boots to multi-user.target by default, NOT
+# graphical.target (confirmed via `systemctl get-default` on the real bench
+# device) -- WantedBy=graphical.target would have installed cleanly but
+# never actually started this service on a real boot, since nothing pulls
+# that target in on a Lite image. Caught before deploying, not after.
+WantedBy=multi-user.target

@@ -1,0 +1,12 @@
+[Unit]
+Description=architect2 kiosk boot/restart history log (runs once per boot)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+User=pi
+TimeoutStartSec=15
+ExecStart=/usr/local/bin/tamper-watchdog.sh
+
+[Install]
+WantedBy=multi-user.target

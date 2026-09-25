@@ -1,0 +1,8 @@
+{
+  "api_base": "https://myindoor.global",
+  "widget_id": "__WIDGET_ID__",
+  "secret_key": "__SECRET_KEY__",
+  "widget_public_url": "https://myindoor.global/kiosk-view/__WIDGET_ID__/__SECRET_KEY__",
+  "device_label": "__DEVICE_LABEL__",
+  "poll_config_every_sec": 1800
+}

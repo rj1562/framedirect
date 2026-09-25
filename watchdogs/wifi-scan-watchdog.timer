@@ -1,0 +1,9 @@
+[Unit]
+Description=Run wifi-scan-watchdog every 5 minutes (a scan briefly disrupts WiFi association, so this runs far less often than the 30s health watchdogs)
+
+[Timer]
+OnCalendar=*-*-* *:0/5:10
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target
