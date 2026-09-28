@@ -109,7 +109,7 @@ sequenceDiagram
 
     FW->>S: black (rainbow splash disabled)
     FW->>K: start kernel (~9 s in)
-    K->>S: early framebuffer appears (fbcon=map:1, when enabled, keeps kernel text off it)
+    K->>S: early framebuffer appears, stays black (fbcon=map:1 keeps kernel text off it)
     SP->>S: console → graphics mode, paint boot image (~11 s)
     K->>S: real display driver takes over, screen wiped (~15 s)
     SP->>S: repaint boot image (~0.2 s later)
@@ -187,10 +187,11 @@ flowchart LR
 ## 7. Safety rules built into the design
 
 - **Boot files are touched as little as possible.** The only boot-line
-  change (`fbcon=map:1`) is tested with Raspberry Pi's `tryboot` first:
-  one test boot, and a power cycle returns to normal. `console=tty1` is never
-  removed and the login service is never disabled; those changes caused
-  hangs in earlier builds.
+  change is one added word, `fbcon=map:1`. It was proven with Raspberry Pi's
+  `tryboot` first (one test boot; a power cycle returns to normal), then made
+  permanent; the original is kept as `cmdline.txt.orig`. `console=tty1` is
+  never removed and the login service is never disabled; those changes
+  caused hangs in earlier builds.
 - **Everything restarts itself.** The renderer and the guard restart
   automatically if they ever exit; the network watchdog reboots the Pi after
   a long outage and tags that reboot so it isn't mistaken for tampering.

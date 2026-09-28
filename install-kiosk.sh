@@ -1,6 +1,6 @@
 #!/bin/bash
 ###############################################################################
-# Airvoice Native Kiosk installer (v0.1.0, testing)
+# Airvoice Native Kiosk installer (v0.2.0, testing)
 #
 # Provisions a Raspberry Pi (already on Ethernet and/or WiFi, already running
 # Raspberry Pi OS Trixie) as an unattended kiosk showing the AQI widget --
@@ -375,50 +375,35 @@ else
     warn "Could not find config.txt (checked /boot/firmware and /boot) -- rainbow splash not addressed"
 fi
 
-# The above comment's assumption -- that kiosk-renderer.service is "the
-# very next thing the display shows" after the rainbow splash -- was WRONG
-# in practice: cmdline.txt still had `console=tty1`, so every kernel/
-# systemd boot message printed straight to the physical display, and
-# getty@tty1.service was still enabled, so a login prompt sat on screen
-# after that. This was TEMPORARILY disabled while diagnosing an unrelated
-# SDL2/DRM/KMS rendering bug (see kiosk_renderer.py's module docstring) --
-# keeping console=tty1 active turned the screen into a diagnostic tool
-# during that investigation. That bug is now fixed by dropping SDL2/DRM
-# entirely in favor of direct /dev/fb0 writes, so this is re-enabled.
-# OFF, and meant to stay off: every reboot after applying this (three
-# separate times, two different SD cards) left the device unreachable on
-# both interfaces with a blank screen. Boot text and the tty1 cursor are
-# instead hidden at runtime by an overlay that switches the console into
-# graphics mode, so nothing on the boot partition is ever touched.
-APPLY_QUIET_BOOT=false
-if [ "$APPLY_QUIET_BOOT" = true ]; then
-    CMDLINE="/boot/firmware/cmdline.txt"
-    [ -f "$CMDLINE" ] || CMDLINE="/boot/cmdline.txt"
-    if [ -f "$CMDLINE" ]; then
-        backup_if_exists "$CMDLINE"
-        if grep -q 'console=tty1' "$CMDLINE" || ! grep -qw 'quiet' "$CMDLINE"; then
-            sudo sed -i \
-                -e 's/console=tty1 //g' -e 's/ console=tty1//g' -e 's/console=tty1//g' \
-                "$CMDLINE"
-            for flag in quiet loglevel=3 vt.global_cursor_default=0 logo.nologo consoleblank=0; do
-                grep -q "\b${flag}\b" "$CMDLINE" || sudo sed -i "s/rootwait/rootwait $flag/" "$CMDLINE"
-            done
-            ok "cmdline.txt updated: boot console text no longer prints to the kiosk display"
-        else
-            ok "cmdline.txt already quiet-boot configured"
-        fi
-    else
-        warn "Could not find cmdline.txt (checked /boot/firmware and /boot) -- boot console text not addressed"
-    fi
-
-    if systemctl is-enabled getty@tty1.service >/dev/null 2>&1; then
-        sudo systemctl mask getty@tty1.service
-        ok "getty@tty1.service masked -- no login prompt will appear on the kiosk display"
-    else
-        ok "getty@tty1.service already masked/disabled"
-    fi
+# Keep kernel text and the raspberry logos off the screen (they showed from
+# ~2 s to ~11 s): add the single kernel argument fbcon=map:1, so the text
+# console never attaches to the HDMI framebuffer. Nothing else on the line
+# changes -- console=tty1 stays and getty@tty1 is not touched. (An earlier
+# build removed console=tty1, added quiet flags and masked getty; the
+# device then hung with a blank screen on three reboots. That code is gone.)
+# Tested first with tryboot on the bench, then as the normal boot line.
+# Undo: sudo tools/boot-test.sh revert, or on a PC copy cmdline.txt.orig
+# over cmdline.txt on the SD card's boot partition.
+CMDLINE="/boot/firmware/cmdline.txt"
+[ -f "$CMDLINE" ] || CMDLINE="/boot/cmdline.txt"
+if [ ! -f "$CMDLINE" ]; then
+    warn "Could not find cmdline.txt (checked /boot/firmware and /boot) -- boot text will be visible for a few seconds"
+elif grep -q 'fbcon=map:1' "$CMDLINE"; then
+    ok "fbcon=map:1 already in $CMDLINE"
+elif [ "$(grep -c . "$CMDLINE")" -ne 1 ] || ! grep -q 'console=tty1' "$CMDLINE"; then
+    warn "$CMDLINE doesn't look like a stock one-line Raspberry Pi OS boot line -- left unchanged (boot text will show for a few seconds)"
 else
-    ok "Quiet-boot (cmdline.txt/getty) temporarily skipped -- diagnosing a reboot hang first, see comment above"
+    [ -f "$CMDLINE.orig" ] || sudo cp -a "$CMDLINE" "$CMDLINE.orig"
+    mkdir -p /home/pi/boot-backup && [ -f /home/pi/boot-backup/cmdline.txt.orig ] || cp "$CMDLINE" /home/pi/boot-backup/cmdline.txt.orig
+    NEW_LINE="$(tr -d '\n' < "$CMDLINE") fbcon=map:1"
+    printf '%s\n' "$NEW_LINE" | sudo tee "$CMDLINE.new" > /dev/null
+    if [ "$(wc -l < "$CMDLINE.new")" -eq 1 ]; then
+        sudo mv "$CMDLINE.new" "$CMDLINE" && sync
+        ok "fbcon=map:1 added to $CMDLINE (original saved as cmdline.txt.orig)"
+    else
+        sudo rm -f "$CMDLINE.new"
+        warn "Refused to change $CMDLINE (result was not a single line) -- left unchanged"
+    fi
 fi
 
 # Widget's own clock is IST regardless of physical site -- confirmed live
@@ -600,6 +585,7 @@ step "11/$TOTAL_STEPS — Self-test"
 check "kiosk-renderer.service is active"        systemctl is-active --quiet kiosk-renderer.service
 check "kiosk-splash.service is enabled"         systemctl is-enabled --quiet kiosk-splash.service
 check "kiosk-console-guard.service is enabled"  systemctl is-enabled --quiet kiosk-console-guard.service
+check "fbcon=map:1 in the boot line (no kernel text on screen)" grep -q "fbcon=map:1" /boot/firmware/cmdline.txt
 check "net-watchdog.timer is active"            systemctl is-active --quiet net-watchdog.timer
 if [ "$ENABLE_CEC" = true ]; then
     check "cec-watchdog.timer is active"        systemctl is-active --quiet cec-watchdog.timer

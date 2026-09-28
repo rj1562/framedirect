@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.2.0 — 2026-09-28 (testing, not for release)
+
+The whole boot is now hidden: black, then the boot image, then the widget.
+
+### Boot
+- `fbcon=map:1` is now part of the normal boot line. It passed three
+  `tryboot` test boots, then a normal boot on the bench (no kernel text on
+  screen, all services up, networks up, no throttling).
+- The installer adds it: one word at the end of `cmdline.txt`, only on a
+  stock one-line boot line with `console=tty1`, original kept as
+  `cmdline.txt.orig` (also in `~/boot-backup/`). The self-test checks it.
+- The old, disabled quiet-boot code (removed `console=tty1`, masked
+  getty; caused hangs) is deleted from the installer.
+- `tools/boot-test.sh apply-fbcon` / `revert` to add or undo it by hand.
+- Faster repaint after the display-driver switch at ~15 s: black blink down
+  from ~0.3 s to ~0.2 s.
+- The console guard asks the renderer to redraw immediately after catching
+  a console reset, instead of waiting up to a second.
+
+### Tools
+- `tools/measure-usage.sh`: read-only CPU / memory (incl. swap) /
+  temperature / throttling snapshot, identical for any kiosk version, used
+  to compare against the Chromium kiosk (v8.2: ~277 MB for the display
+  stack, ~211 MB of it in swap; FrameDirect ~95 MB).
+- `tools/make-demo-images.py`: documentation screenshots from made-up data.
+
+### Docs
+- `docs/ARCHITECTURE.md` with diagrams; README with purpose, capabilities
+  and a screenshot gallery; all company details removed.
+
 ## 0.1.0 — 2026-09-25 (testing, not for release)
 
 First version under version control. Bench-tested on one Raspberry Pi

@@ -1,6 +1,6 @@
 # Airvoice Native Kiosk
 
-> **Version 0.1.0 — testing, not for release.** Bench-tested on one
+> **Version 0.2.0 — testing, not for release.** Bench-tested on one
 > Raspberry Pi Zero 2 W. Not yet deployed to any site. Expect changes.
 >
 > All screenshots in this repo use made-up data ("Company XYZ", invented
@@ -13,7 +13,8 @@ web browser**. A small Python program reads the widget's JSON API and draws
 the screen itself, straight onto the Linux framebuffer.
 
 This is a separate project from the Chromium-based kiosk installer (v1–v9)
-and is not a continuation of it.
+and is not a continuation of it. The architecture's name is **FrameDirect**:
+it draws the screen directly onto the display's framebuffer.
 
 ![Indoor-only layout](docs/images/indoor-good.png)
 
@@ -142,7 +143,7 @@ What the screen shows on the bench today:
 
 | Time from power-on | Screen |
 |---|---|
-| 0 – ~11 s | black (firmware, then kernel; nothing can draw yet) |
+| 0 – ~11 s | black (firmware, then kernel; no text, no raspberry logos, no cursor) |
 | ~11 s | branded boot image |
 | ~15 s | brief black blink (~0.2 s) while the display driver switches, then the boot image again |
 | ~45 s | live widget |
@@ -158,9 +159,15 @@ How:
   login prompt; the guard switches it back within 50 ms and asks the
   renderer to redraw immediately.
 - `fbcon=map:1` on the kernel command line keeps kernel text and the
-  raspberry logos off the screen from 2 s to 11 s. **Status: tested only
-  through `tryboot` so far — not yet in the normal boot line.** See
-  "Boot-line changes" below.
+  raspberry logos off the screen from 2 s to 11 s: the text console never
+  attaches to the HDMI output. The installer adds it (one word at the end of
+  `cmdline.txt`, original saved as `cmdline.txt.orig`). See "Boot-line
+  changes" below.
+
+The whole boot is hidden: from power-on the screen goes black, then the boot
+image, then the widget. Nothing from Linux (kernel messages, logos, login
+prompt, cursor) reaches the screen, while boot itself runs exactly as stock
+and everything is still reachable over SSH and in the logs.
 
 ### Boot-line changes (read before editing `cmdline.txt`)
 
@@ -174,8 +181,13 @@ Rules since then:
   `tools/boot-test.sh` does this and keeps backups in
   `/boot/firmware/*.orig` and `~/boot-backup/`. `tryboot` is confirmed to
   work on the Pi Zero 2 W.
-- The installer does not edit boot files (`APPLY_QUIET_BOOT=false`), apart
-  from `disable_splash=1` in `config.txt`.
+- `fbcon=map:1` went through exactly that: proven with `tryboot`, then
+  applied as the normal boot line on the bench. The installer's only boot
+  file changes are `fbcon=map:1` in `cmdline.txt` (only when the file is a
+  stock one-line boot line with `console=tty1`) and `disable_splash=1` in
+  `config.txt`. The old quiet-boot code has been removed from the installer.
+- Undo: `sudo tools/boot-test.sh revert`, or put the SD card in a PC and copy
+  `cmdline.txt.orig` over `cmdline.txt` on the boot partition.
 
 ## Data polling
 
@@ -246,17 +258,22 @@ renderer/
   assets/                     fonts, Airvoice marks
 watchdogs/                    network, WiFi scan, tamper/restart, HDMI-CEC
 tools/
-  boot-test.sh                test a kernel command-line change with tryboot
+  boot-test.sh                test a boot-line change with tryboot; apply-fbcon / revert
+  measure-usage.sh            read-only CPU / memory / temperature / throttling snapshot
   update-renderer.sh          push new code to an installed kiosk
   make-demo-images.py         regenerate the screenshots in docs/images (made-up data)
 offline-packages/             script to build an offline .deb bundle (bundle itself not in git)
 docs/                         ARCHITECTURE.md, research notes, screenshots
 ```
 
-## Known issues and open work (v0.1)
+## Known issues and open work (v0.2)
 
-- `fbcon=map:1` not yet in the normal boot line (waiting for approval, then
-  3 warm + 3 cold reboot checks).
+- The boot-line change passed three tryboot tests and the first normal boot;
+  more warm and cold reboot cycles are still to run.
+- CPU: the renderer redraws the full screen every second (~26–29% of one
+  core in an earlier reading). Redrawing only when the minute or the data
+  changes should bring it to ~1–2%. No throttling either way (flag 0x0,
+  ~45 °C).
 - ~0.2 s black blink at ~15 s when the display driver switches; can't be
   removed from userspace.
 - Outdoor section with no outdoor station shows empty values. CPCB station
